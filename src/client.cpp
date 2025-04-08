@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <vector>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -7,7 +8,8 @@
 #include <cstring>
 #include <unistd.h>
 
-const int MAX_MSG_SIZE = 4*1024;
+const int MAX_MSG_SIZE = 64*1024;
+//const int MAX_MSG_SIZE = (32 << 20) + 10;
 
 int read_full(int fd, char* buff, int len)
 {
@@ -108,33 +110,29 @@ int main()
     std::cout << "connect success\n";
   }
 
-  if(true)  //jft
-  {
-    std::cout << "press enter to send msg\n";
-    std::cin.get();
-    std::string str = "hello there";
-    int rv = send_msg(fd, str.data(), str.size());
-    str = "general kenobi";
-    rv = send_msg(fd, str.data(), str.size());
-    {
-      char reply[MAX_MSG_SIZE+1] = {0};
-      uint32_t reply_len = 0;
-      int rv =  recv_msg(fd, reply, reply_len);
-      std::cout << "reply len=" << reply_len << "\n";
-      reply[reply_len] = 0;
-      std::cout << "server responded with [" << reply << "]\n";
-    }
-    {
-      char reply[MAX_MSG_SIZE+1] = {0};
-      uint32_t reply_len = 0;
-      int rv =  recv_msg(fd, reply, reply_len);
-      std::cout << "reply len=" << reply_len << "\n";
-      reply[reply_len] = 0;
-      std::cout << "server responded with [" << reply << "]\n";
-    }
-  }
+  const size_t k_max_msg = 32 << 10;  // likely larger than the kernel buffer
+  std::vector<std::string> query_list = {
+    "hello1", "hello2", "hello3",
+    //std::string(k_max_msg, 'z'), // requires multiple event loop iterations
+    "hello5",
+  };
 
-  while(true)
+  for(auto& str: query_list)
+  {
+    int rv = send_msg(fd, str.data(), str.size());
+  }
+  for(auto& str: query_list)
+  {
+    char reply[MAX_MSG_SIZE+1] = {0};
+    uint32_t reply_len = 0;
+    int rv =  recv_msg(fd, reply, reply_len);
+    std::cout << "reply len=" << reply_len << "\n";
+    reply[reply_len] = 0;
+    std::cout << "server responded with [" << reply << "]\n";
+  }
+  std::cin.get();
+
+  while(false)
   {
     std::cout << "Enter the message to send to the server\n";
     std::string str;

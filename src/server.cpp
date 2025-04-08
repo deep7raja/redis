@@ -49,7 +49,7 @@ int main()
     assert(rv > 0);
     std::cout << "success\n";
 
-    sleep(3);
+    sleep(1);
     
     if(poll_args[0].revents & POLLIN)
     {
@@ -65,14 +65,24 @@ int main()
     //poll_args[0].revents = 0;
 
     for(int i=1; i<poll_args.size(); ++i){
+      bool match_found = false;
       if(poll_args[i].revents & POLLIN){
+        match_found = true;
         handle_request(fd2conn[poll_args[i].fd]);
       }
       if(poll_args[i].revents & POLLOUT){
+        match_found = true;
         handle_write(fd2conn[poll_args[i].fd]);
       }
       if(poll_args[i].revents & POLLERR){
-        assert(0);
+        match_found = true;
+        std::cout << "PollError detected for fd =" << poll_args[i].fd << "\n";
+        fd2conn[poll_args[i].fd]->want_close = true;
+        return -1;
+      }
+      if(!match_found)
+      {
+        std::cout << "invalid poll result match not found\n";
       }
       //poll_args[i].revents = 0;
     }
@@ -91,7 +101,15 @@ int main()
       {
         curfd.events |= POLLIN;
       }
-      poll_args.push_back(curfd);
+      if(conn->want_close)
+      {
+        std::cout << "closing the connection on fd=" << conn->fd << "\n";
+        close(conn->fd);
+      }
+      else 
+      {
+        poll_args.push_back(curfd);
+      }
     }
   }
 }

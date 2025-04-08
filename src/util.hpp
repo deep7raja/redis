@@ -10,7 +10,7 @@
 //#include <iostream>
 #include <unistd.h>
 
-const int MAX_MSG_LEN = 4*1024;
+const int MAX_MSG_LEN = (32 << 14);
 
 namespace Util
 {

@@ -26,16 +26,17 @@ void Util::read_full(Util::Conn *conn)
     uint8_t rbuf[4 + MAX_MSG_LEN];
     errno = 0;
     int rv = read(conn->fd, rbuf, 4 + MAX_MSG_LEN);
-    if(rv < 0)
+    if(rv < 0 && EAGAIN == errno)
     {
-      if(EAGAIN != errno)
-      {
-        perror("read returned negative rv");
-        std::cout << "[CRITICAL] rv=" << rv << ", errno=" << errno << "\n";
-      }
       return;
     }
-    if(rv == 0) return;
+    else if(rv <= 0)
+    {
+        perror("read returned negative closing the connection");
+        std::cout << "[CRITICAL] rv=" << rv << ", errno=" << errno << "\n";
+        conn->want_close = true;
+        return;
+    }
     conn->buff_in.insert(conn->buff_in.end(), rbuf, rbuf+rv);
   }
 }
@@ -55,7 +56,6 @@ void Util::handle_request(Util::Conn *conn)
 
     std::string rsp = process_msg(std::string((const char*)conn->buff_in.data() + 4, msg_len));
     conn->buff_in.erase(conn->buff_in.begin(), conn->buff_in.begin() + 4 + msg_len);
-    std::cout << "buff_in sizee of msg process=" << conn->buff_in.size() << "\n";
 
     uint32_t rsp_len = rsp.length();
     uint8_t* len_arr = reinterpret_cast<uint8_t*>(&rsp_len);
@@ -64,14 +64,25 @@ void Util::handle_request(Util::Conn *conn)
     conn->buff_out.insert(conn->buff_out.end(), len_arr, len_arr+4);
     conn->buff_out.insert(conn->buff_out.end(), rsp.data(), rsp.data()+rsp_len);
     conn->want_write = true;
+    handle_write(conn);
   }
 }
 
 void Util::handle_write(Util::Conn *conn)
 {
   if(conn->buff_out.empty()) return;
+  std::cout << "handle_write called\n";
   int rv = write(conn->fd, conn->buff_out.data(), conn->buff_out.size());
-  assert(rv > 0);
+  if(rv < 0 && EAGAIN == errno)
+  {
+    return;
+  }
+  else if(rv <= 0)
+  {
+    perror("write returned negative not yet closing the connection");
+    std::cout << "[CRITICAL] rv=" << rv << ", errno=" << errno << "\n";
+    return;
+  }
   conn->buff_out.erase(conn->buff_out.begin(), conn->buff_out.begin()+rv);
   if(conn->buff_out.empty()) conn->want_write = false;
 
