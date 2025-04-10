@@ -1,14 +1,10 @@
-#include <cstdint>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <cassert>
-//#include <errno.h>
-//#include <stdio.h>
-#include <vector>
 #include <fcntl.h>
 #include <poll.h>
-//#include <iostream>
 #include <unistd.h>
+#include "Buffer.hpp"
 
 const int MAX_MSG_LEN = (32 << 14);
 
@@ -20,7 +16,7 @@ struct Conn{
   bool want_read = false;
   bool want_write = false;
   bool want_close = false;
-  std::vector<uint8_t> buff_in, buff_out;
+  Buffer buff_in, buff_out;
 };
 
 void setNoBlockFd(int fd);
